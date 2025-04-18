@@ -1,6 +1,6 @@
 variable "credentials" {
   description = "Project GCP credentials account"
-  default     = "C:/Users/Bagas/nyc-taxi-etl/credentials/project_creds.json"
+  default     = "C:/Users/Bagas/nyc-taxi-etl/credentials/cred_file.json"
 }
 
 variable "project" {
