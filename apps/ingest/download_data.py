@@ -25,10 +25,8 @@ def download_data(year, service) :
     
     :param year: The `year` parameter in the `download_data` function is used to specify the year for
     which data needs to be downloaded
-    :param service: The `service` parameter in the `download_data` function seems to represent the type
-    of data service being downloaded. It is used to construct the filename and the destination path for
-    uploading the file to Google Cloud Storage (GCS). It is important for identifying and organizing the
-    downloaded data files based on the
+    :param service: The `service` parameter in the `download_data` function represent the type
+    of taxy service being downloaded. 
     """
     for i in range(1,13) :
         month = f'{i:02d}'
