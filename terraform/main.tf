@@ -61,6 +61,7 @@ resource "google_storage_bucket" "bucket_raw" {
   }
 }
 
+
 resource "google_bigquery_dataset" "dataset" {
   dataset_id  = var.bq_dataset_name
   description = "Project Dataset for NYC ETL"
@@ -69,7 +70,12 @@ resource "google_bigquery_dataset" "dataset" {
 
 resource "google_bigquery_table" "table_staging" {
   dataset_id = google_bigquery_dataset.dataset.dataset_id
-  table_id   = "staging_table"
+  table_id   = "staging_table_yellow"
+}
+
+resource "google_bigquery_table" "table_staging" {
+  dataset_id = google_bigquery_dataset.dataset.dataset_id
+  table_id   = "staging_table_green"
 }
 
 resource "google_bigquery_table" "table_production" {

@@ -15,7 +15,7 @@ variable "bucket_name_raw" {
 
 variable "bucket_name_processed" {
   description = "Raw Ingest Bucket"
-  default     = "project_clean_data"
+  default     = "project_temp_data"
 }
 
 variable "region" {
