@@ -1,0 +1,12 @@
+name: "nyc_taxi"
+
+profile: "profile"
+
+models:
+  nyc_taxi:
+    materialized: table
+
+seeds:
+  nyc_taxi:
+    project_dataset:
+      +schema: seeds
