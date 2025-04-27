@@ -3,11 +3,9 @@
 import pyspark
 from pyspark.sql import SparkSession, types
 from pyspark.sql import functions as F
-from pyspark.conf import SparkConf
-from pyspark.context import SparkContext
 
-storage_connector = '/home/Bagas/pipeline_dev/lib/gcs-connector-hadoop3-2.2.5.jar'
-google_credentials = '/home/Bagas/pipeline_dev/credentials/cred_file.json'
+storage_connector = '/usr/local/airflow/include/lib/gcs-connector-hadoop3-2.2.5.jar'
+google_credentials = '/usr/local/airflow/include/credentials/cred_file.json'
 
 def transform_load_green(service, year):
 
@@ -48,6 +46,7 @@ def transform_load_green(service, year):
             filename = f'{service}_tripdata_{year}-{month}.parquet'
 
             try :
+                print(f"Loading file: gs://project_raw_ingest/{service}/{year}/{filename}")
                 df = spark.read.format("parquet").load(f"gs://project_raw_ingest/{service}/{year}/{filename}")
 
                 for field in green_schema.fields :
@@ -74,7 +73,10 @@ def transform_load_green(service, year):
                     .option("table", f"indigo-muse-452811-u7.project_dataset.staging_table_green")\
                     .option("createDisposition", "CREATE_IF_NEEDED")\
                     .save()
+                    
             except:
                 break
+            
+        spark.stop()
 
 

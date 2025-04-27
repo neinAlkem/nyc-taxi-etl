@@ -11,7 +11,7 @@ def upload_file_gcs(bucket_name, local_file, object_name):
     # local_file = "local/path/to/file"
     # object_name = "storage-object-name"
 
-    storage_client = storage.Client.from_service_account_json('credentials/cred_file.json')
+    storage_client = storage.Client.from_service_account_json('/usr/local/airflow/include/credentials/cred_file.json')
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(object_name)
     blob.upload_from_filename(local_file)
@@ -70,11 +70,11 @@ def download_data(service, year) :
             break
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Downloading NYC Dataset from Website, Then Push to GCS")
-    parser.add_argument('year', type=int, help='Set Year of Data')
-    parser.add_argument('service', type=str, help='Set The Type of Services (Yellow / Green)')
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser(description="Downloading NYC Dataset from Website, Then Push to GCS")
+#     parser.add_argument('year', type=int, help='Set Year of Data')
+#     parser.add_argument('service', type=str, help='Set The Type of Services (Yellow / Green)')
     
-    args = parser.parse_args()
+#     args = parser.parse_args()
     
-    download_data(args.year,args.service)
+#     download_data(args.year,args.service)
