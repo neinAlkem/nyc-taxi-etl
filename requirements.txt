@@ -1,5 +1,5 @@
 # Astro Runtime includes the following pre-installed providers packages: https://www.astronomer.io/docs/astro/runtime-image-architecture#provider-packages
-apache-airflow-providers-apache-spark==5.2.0
+apache-airflow-providers-apache-spark==5.2.1
 astronomer-cosmos[dbt-bigquery]==1.0.3
 protobuf==4.25.3
 pyspark==3.5.0
@@ -7,3 +7,5 @@ tqdm==4.66.1
 google-cloud-storage
 google-cloud-bigquery
 pyarrow==15.0.2
+
+astro-run-dag # This package is needed for the astro run command. It will be removed before a deploy
