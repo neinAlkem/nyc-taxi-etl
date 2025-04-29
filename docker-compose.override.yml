@@ -21,7 +21,7 @@ services:
       - ./include:/usr/local/airflow/include
       - ./apps:/opt/spark-apps
       - ./data:/opt/spark-data
-       - ./include/credentials:/opt/airflow/include/credentials
+      - ./include/credentials:/usr/local/airflow/include/credentials
     networks:
       - airflow
 
@@ -44,7 +44,7 @@ services:
       - spark-data:/bitnami
       - ./apps:/opt/spark-apps
       - ./data:/opt/spark-data
-      - ./include/credentials:/opt/airflow/include/credentials
+      - ./include/credentials:/usr/local/airflow/include/credentials
     depends_on:
       - spark-master
     networks:  
@@ -69,7 +69,7 @@ services:
       - spark-data:/bitnami
       - ./apps:/opt/spark-apps
       - ./data:/opt/spark-data
-      - ./include/credentials:/opt/airflow/include/credentials
+      - ./include/credentials:/usr/local/airflow/include/credentials
     depends_on:
       - spark-master
     networks:
