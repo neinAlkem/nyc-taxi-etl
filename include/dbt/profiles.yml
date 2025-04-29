@@ -1,0 +1,12 @@
+profile:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: indigo-muse-452811-u7
+      dataset: project_dataset
+      keyfile: ./include/credentials/cred_file.json
+      threads: 1
+      timeout_seconds: 300
+      location: US
