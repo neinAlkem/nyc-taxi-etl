@@ -1,10 +1,12 @@
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
+from airflow.operators.bash import BashOperator
 from airflow.models import Variable
-from cosmos.airflow.task_group import DbtTaskGroup
 from datetime import datetime, timedelta
+from cosmos.airflow.task_group import DbtTaskGroup
 from cosmos.config import RenderConfig
+from cosmos.constants import LoadMode
 from include.dbt.cosmos_config import DBT_PROJECT_CONFIG, DBT_CONFIG
 from include.ingest_data import download_data
 
@@ -14,7 +16,7 @@ default_args = {
     'owner': dag_owner,
     'depends_on_past': False,
     'retries': 2,
-    'retry_delay': timedelta(minutes=5)
+    'retry_delay': timedelta(minutes=5),
 }
 
 with DAG(
@@ -24,56 +26,130 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=["nyc", "etl", "spark", "dbt"]
+    tags=["nyc", "etl", "spark", "bigquery"],
 ) as dag:
 
     @task
     def download_data_task():
         year = int(Variable.get("year", default_var=2022))
-        service = Variable.get("service_type", default_var="green")
+        service = Variable.get("service", default_var="green")
         download_data(service, year)
         return {"year": year, "service": service}
 
     @task.branch
     def choose_transform_service(download_result):
-        service = download_result["service"]
+        service = download_result["service"].strip()
         return f"transform_{service}"
 
-    transform_green = SparkSubmitOperator(
+    downloaded_data = download_data_task()
+    chosen_service = choose_transform_service(downloaded_data)
+
+    # spark_green = SparkSubmitOperator(
+    #     task_id='transform_green',
+    #     conn_id='spark_default',
+    #     verbose=True,
+    #     conf={
+    #         "spark.jars": "/usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar",
+    #         "spark.jars.packages": "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1",
+    #         "spark.hadoop.fs.gs.impl": "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+    #         "spark.hadoop.fs.AbstractFileSystem.gs.impl": "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+    #         "spark.hadoop.google.cloud.auth.service.account.enable": "true",
+    #         "spark.hadoop.google.cloud.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE",
+    #         "spark.hadoop.google.cloud.auth.service.account.json.keyfile": "/usr/local/airflow/include/credentials/cred_file.json",
+    #         "temporaryGcsBucket": "project_clean_data",
+    #         "parentProject": "indigo-muse-452811-u7",
+    #         "spark.hadoop.fs.gs.project.id": "indigo-muse-452811-u7",
+    #         "spark.executor.memory": "4g",
+    #         "spark.executor.cores": "4",
+    #         "spark.driver.memory": "4g",
+    #         "spark.master": "local[*]"
+    #     },
+    #     application="/usr/local/airflow/include/spark_warehouse/transform_load_green.py",
+    #     application_args=[
+    #         "--year", "{{ ti.xcom_pull(task_ids='download_data_task')['year'] }}",
+    #         "--service", "{{ ti.xcom_pull(task_ids='download_data_task')['service'] }}"
+    #     ],
+    # )
+
+    # spark_yellow = SparkSubmitOperator(
+    #     task_id='transform_yellow',
+    #     conn_id='spark_default',
+    #     verbose=True,
+    #     conf={
+    #         "spark.jars": "/usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar",
+    #         "spark.jars.packages": "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1",
+    #         "spark.hadoop.fs.gs.impl": "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+    #         "spark.hadoop.fs.AbstractFileSystem.gs.impl": "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+    #         "spark.hadoop.google.cloud.auth.service.account.enable": "true",
+    #         "spark.hadoop.google.cloud.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE",
+    #         "spark.hadoop.google.cloud.auth.service.account.json.keyfile": "/usr/local/airflow/include/credentials/cred_file.json",
+    #         "temporaryGcsBucket": "project_clean_data",
+    #         "parentProject": "indigo-muse-452811-u7",
+    #         "spark.hadoop.fs.gs.project.id": "indigo-muse-452811-u7",
+    #         "spark.executor.memory": "4g",
+    #         "spark.executor.cores": "4",
+    #         "spark.driver.memory": "4g",
+    #         "spark.master": "local[*]"
+    #     },
+    #     application="/usr/local/airflow/include/spark_warehouse/transform_load_yellow.py",
+    #     application_args=[
+    #         "--year", "{{ ti.xcom_pull(task_ids='download_data_task')['year'] }}",
+    #         "--service", "{{ ti.xcom_pull(task_ids='download_data_task')['service'] }}"
+    #     ],
+    # )
+    
+    spark_green = BashOperator(
         task_id='transform_green',
-        conn_id='spark_default',
-        application='./include/spark_warehouse/transform_load_green.py',
-        verbose=True
+        bash_command="""
+        spark-submit \
+        --master local[*] \
+        --jars /usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar \
+        --packages com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1 \
+        --conf "spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem" \
+        --conf "spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS" \
+        --conf "spark.hadoop.google.cloud.auth.service.account.enable=true" \
+        --conf "spark.hadoop.google.cloud.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE" \
+        --conf "spark.hadoop.google.cloud.auth.service.account.json.keyfile=/usr/local/airflow/include/credentials/cred_file.json" \
+        --conf "spark.hadoop.fs.gs.project.id=indigo-muse-452811-u7" \
+        --conf "temporaryGcsBucket=project_clean_data" \
+        --conf "parentProject=indigo-muse-452811-u7" \
+        /usr/local/airflow/include/spark_warehouse/transform_load_green.py \
+        --year "{{ ti.xcom_pull(task_ids='download_data_task')['year'] }}" \
+        --service "{{ ti.xcom_pull(task_ids='download_data_task')['service'] }}"
+        """,
     )
-
-    transform_yellow = SparkSubmitOperator(
-        task_id='transform_yellow',  
-        conn_id='spark_default',
-        application='./include/spark_warehouse/transform_load_yellow.py',
-        verbose=True
+    
+    spark_yellow = BashOperator(
+        task_id='transform_yellow',
+        bash_command="""
+        spark-submit \
+        --master local[*] \
+        --jars /usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar \
+        --packages com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1 \
+        --conf "spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem" \
+        --conf "spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS" \
+        --conf "spark.hadoop.google.cloud.auth.service.account.enable=true" \
+        --conf "spark.hadoop.google.cloud.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE" \
+        --conf "spark.hadoop.google.cloud.auth.service.account.json.keyfile=/usr/local/airflow/include/credentials/cred_file.json" \
+        --conf "spark.hadoop.fs.gs.project.id=indigo-muse-452811-u7" \
+        --conf "temporaryGcsBucket=project_clean_data" \
+        --conf "parentProject=indigo-muse-452811-u7" \
+        /usr/local/airflow/include/spark_warehouse/transform_load_yellow.py \
+        --year "{{ ti.xcom_pull(task_ids='download_data_task')['year'] }}" \
+        --service "{{ ti.xcom_pull(task_ids='download_data_task')['service'] }}"
+        """,
     )
-
-    # DBT TaskGroup for transformation using Cosmos
-    @task
-    def dbt_transformation_task():
-        return DbtTaskGroup(
-            group_id='transform_taxi_data',
-            project_config=DBT_PROJECT_CONFIG,
-            profile_config=DBT_CONFIG,
-            render_config=RenderConfig(
-                load_method='dbt_ls',  # Load DBT models dynamically
-                select=['path:models/core/combined_taxi_data']  # Specify the model(s) to run
-            )
+    
+    dbt_transform = DbtTaskGroup(
+        group_id='transform_taxi_data',
+        project_config=DBT_PROJECT_CONFIG,
+        profile_config=DBT_CONFIG,
+        render_config=RenderConfig(
+            load_method=LoadMode.DBT_LS,
+            select=['path:models/core/production_table.sql']
         )
+    )
 
-    # Task dependencies
-    download_result = download_data_task()
-    branch = choose_transform_service(download_result)
-
-    # Set application_args after getting download result
-    transform_green.application_args = [str(download_result['year']), download_result['service']]
-    transform_yellow.application_args = [str(download_result['year']), download_result['service']]
-
-    dbt_transform = dbt_transformation_task()
-    # Branching logic
-    download_result >> branch >> [transform_green, transform_yellow] >> dbt_transform
+    # Set dependencies
+    downloaded_data >> chosen_service
+    chosen_service >> [spark_green, spark_yellow] >> dbt_transform
