@@ -3,3 +3,4 @@ logs/
 dbt_packages/
 target/
 credentials/
+package-lock.yml
