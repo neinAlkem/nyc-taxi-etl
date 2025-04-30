@@ -4,11 +4,9 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from airflow.operators.bash import BashOperator
 from airflow.models import Variable
 from datetime import datetime, timedelta
-from cosmos.airflow.task_group import DbtTaskGroup
-from cosmos.config import RenderConfig
-from cosmos.constants import LoadMode
-from include.dbt.cosmos_config import DBT_PROJECT_CONFIG, DBT_CONFIG
+# from include.dbt.cosmos_config import DBT_PROJECT_CONFIG, DBT_CONFIG
 from include.ingest_data import download_data
+from airflow.utils.trigger_rule import TriggerRule
 
 dag_owner = 'user'
 
@@ -39,7 +37,7 @@ with DAG(
     @task.branch
     def choose_transform_service(download_result):
         service = download_result["service"].strip()
-        return f"transform_{service}"
+        return f"truncate_{service}"
 
     downloaded_data = download_data_task()
     chosen_service = choose_transform_service(downloaded_data)
@@ -98,12 +96,30 @@ with DAG(
     #     ],
     # )
     
+    truncate_green = BashOperator(
+        task_id='truncate_green',
+        bash_command="""
+        cd /usr/local/airflow/include/dbt &&
+        dbt deps --profiles-dir .&& 
+        dbt run-operation truncate_table --args '{"table_name": "indigo-muse-452811-u7.project_dataset.staging_table_green"}' --profiles-dir .
+        """
+    )
+
+    truncate_yellow = BashOperator(
+        task_id='truncate_yellow',
+        bash_command="""
+        cd /usr/local/airflow/include/dbt &&
+        dbt deps --profiles-dir .&&
+        dbt run-operation truncate_table --args '{"table_name": "indigo-muse-452811-u7.project_dataset.staging_table_yellow"}' --profiles-dir .
+        """
+    )
+    
     spark_green = BashOperator(
         task_id='transform_green',
-        bash_command="""
+        bash_command="""  
         spark-submit \
         --master local[*] \
-        --jars /usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar \
+        --jars /usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar,/usr/local/airflow/include/lib/spark-bigquery-with-dependencies_2.12.0.42.1.jar \
         --packages com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1 \
         --conf "spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem" \
         --conf "spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS" \
@@ -121,11 +137,10 @@ with DAG(
     
     spark_yellow = BashOperator(
         task_id='transform_yellow',
-        bash_command="""
+        bash_command=""" 
         spark-submit \
         --master local[*] \
-        --jars /usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar \
-        --packages com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1 \
+        --jars /usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar,/usr/local/airflow/include/lib/spark-bigquery-with-dependencies_2.12.0.42.1.jar \
         --conf "spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem" \
         --conf "spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS" \
         --conf "spark.hadoop.google.cloud.auth.service.account.enable=true" \
@@ -140,16 +155,30 @@ with DAG(
         """,
     )
     
-    dbt_transform = DbtTaskGroup(
-        group_id='transform_taxi_data',
-        project_config=DBT_PROJECT_CONFIG,
-        profile_config=DBT_CONFIG,
-        render_config=RenderConfig(
-            load_method=LoadMode.DBT_LS,
-            select=['path:models/core/production_table.sql']
-        )
+    dim_dbt = BashOperator(
+        trigger_rule = TriggerRule.ONE_SUCCESS,
+        task_id="dim_dbt",
+        bash_command="""
+        cd /usr/local/airflow/include/dbt &&
+        dbt run --model  core.dim_location \
+            core.dim_payment \
+            core.dim_rate_code \
+            core.dim_store_fwd_flag dim_vendor \
+            core.dim_vendor --profiles-dir .
+        """
+    )
+    
+    fact_dbt = BashOperator(
+        task_id="fact_dbt",
+        bash_command= """
+        cd /usr/local/airflow/include/dbt &&
+        dbt run --model core.production_table --profiles-dir .
+        """
     )
 
     # Set dependencies
     downloaded_data >> chosen_service
-    chosen_service >> [spark_green, spark_yellow] >> dbt_transform
+    chosen_service >> [truncate_green, truncate_yellow]
+    truncate_yellow >> spark_yellow
+    truncate_green >> spark_green
+    [spark_green, spark_yellow] >> dim_dbt >> fact_dbt
