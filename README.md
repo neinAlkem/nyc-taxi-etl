@@ -1,6 +1,6 @@
 # NYC TAXI PIPELINE USING SPARK AND ASTRO CLI
 
-!['Architeture Image'](img/diagram.png)
+!['Architeture Image'](img/ProjectInsfrastructure.png)
 
 This project was designed using Astro CLI, a framework based on Apache Airflow, integrated with DBT and Apache Spark to efficiently handle large-scale data extraction and transformation processes. The main dataset used in this project is the NYC public dataset, which is automatically downloaded from the web on a scheduled basis.
 
