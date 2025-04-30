@@ -21,7 +21,7 @@ WITH combine AS (
         CAST(NULL AS FLOAT64) AS airport_fee,
         total_amount,
         trip_type
-    FROM { { ref(`staging_table_green`) } }
+    FROM `indigo-muse-452811-u7.project_dataset.staging_table_green`
     UNION ALL
     SELECT code_trip,
         'Yellow' AS taxi_type,
@@ -45,11 +45,12 @@ WITH combine AS (
         airport_fee,
         total_amount,
         CAST(NULL AS int64) AS trip_type
-    FROM { { ref(`staging_table_yellow`) } }
+    FROM `indigo-muse-452811-u7.project_dataset.staging_table_yellow`
 )
 SELECT *
 FROM combine c
-WHERE code_trip IS NOT IN (
-        SELECT code_trip
-        FROM { { ref(`production_table`) } }
+WHERE NOT EXISTS (
+        SELECT 1
+        FROM `indigo-muse-452811-u7.project_dataset.production_table` p 
+        WHERE c.code_trip = p.code_trip
     )
