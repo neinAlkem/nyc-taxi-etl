@@ -9,6 +9,18 @@ from pyspark.context import SparkContext
 
 def transform_load_yellow(service, year):
     
+    """
+    The `transform_load_yellow` function reads and processes monthly parquet files for yellow taxi data,
+    transforms the data, and loads it into BigQuery.
+    
+    :param service: The `service` parameter in the script refers to the type of taxi service data being
+    processed. In this case, it is expected to be a string indicating the service type, with 'yellow'
+    being the only supported service at the moment
+    :param year: The `year` parameter in the script is used to specify the year for which the data
+    processing will be performed. It is an integer type argument that is required to be provided when
+    running the script. The script processes data for each month of the specified year
+    """
+    
     # conf = SparkConf() \
     #     .setAppName('yellow_transform') \
     #     .set("spark.jars", "./include/lib/gcs-connector-hadoop3-2.2.5.jar") \
@@ -26,18 +38,18 @@ def transform_load_yellow(service, year):
     
     spark = SparkSession.builder \
         .appName("NYC Taxi ETL Yellow") \
-        .config("spark.jars", "/usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar") \
-        .config("spark.jars.packages", "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1") \
-        .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem") \
-        .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS") \
-        .config("spark.hadoop.google.cloud.auth.service.account.enable", "true") \
-        .config("spark.hadoop.google.cloud.auth.type", "SERVICE_ACCOUNT_JSON_KEYFILE") \
-        .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", "/usr/local/airflow/include/credentials/cred_file.json") \
-        .config("spark.hadoop.fs.gs.project.id", "indigo-muse-452811-u7") \
-        .config("spark.executor.extraJavaOptions", "-Dcom.google.cloud.hadoop.util.AsyncWriteChannelOptions.shouldFlush=false") \
-        .config("spark.driver.extraJavaOptions", "-Dcom.google.cloud.hadoop.util.AsyncWriteChannelOptions.shouldFlush=false") \
         .getOrCreate()
-                
+        # .config("spark.jars", "/usr/local/airflow/include/lib/gcs-connector-3.0.6-shaded.jar") \
+        # .config("spark.jars.packages", "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1") \
+        # .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem") \
+        # .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS") \
+        # .config("spark.hadoop.google.cloud.auth.service.account.enable", "true") \
+        # .config("spark.hadoop.google.cloud.auth.type", "SERVICE_ACCOUNT_JSON_KEYFILE") \
+        # .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", "/usr/local/airflow/include/credentials/cred_file.json") \
+        # .config("spark.hadoop.fs.gs.project.id", "indigo-muse-452811-u7") \
+        # .config("spark.executor.extraJavaOptions", "-Dcom.google.cloud.hadoop.util.AsyncWriteChannelOptions.shouldFlush=false") \
+        # .config("spark.driver.extraJavaOptions", "-Dcom.google.cloud.hadoop.util.AsyncWriteChannelOptions.shouldFlush=false") \
+        
     # spark.sparkContext.setLogLevel("DEBUG")
     logger = spark._jvm.org.apache.log4j.LogManager.getLogger("transform_load_yellow")
 
@@ -95,7 +107,7 @@ def transform_load_yellow(service, year):
 
             # Write to BigQuery
             df.write.format("bigquery")\
-                .mode("append")\
+                .mode("overwrite")\
                 .option("parentProject", "indigo-muse-452811-u7")\
                 .option("temporaryGcsBucket", "project_clean_data" )\
                 .option("createDisposition", "CREATE_IF_NEEDED")\
