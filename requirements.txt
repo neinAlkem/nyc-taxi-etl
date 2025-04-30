@@ -7,3 +7,5 @@ tqdm==4.66.1
 google-cloud-storage
 google-cloud-bigquery
 pyarrow==15.0.2
+
+astro-run-dag # This package is needed for the astro run command. It will be removed before a deploy
