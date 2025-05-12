@@ -16,8 +16,7 @@ The final output of this project is tailored for business users or stakeholders 
 2. **Enable Scalable Data Processing**: Handle large volumes of data efficiently using Apache Spark and modular transformation logic (DBT) for cleaner, reusable analytics workflows.
 3. **Provide a Reproducible Infrastructure Setup**: Use Terraform to define infrastructure as code (IaC), allowing the pipeline to be deployed reliably across different environments (dev, staging, prod) with minimal manual setup.
 4. **Leverage Cloud-native Technologies**: Utilize Google Cloud Platform (GCP) for storage, processing, and querying to ensure the system is scalable, secure, and cost-efficient.
-
-- **Deliver Business Insights Through Visualization**: Empower decision-makers by presenting actionable insights via Google Looker Studio dashboards — focusing on key performance metrics derived from the data.
+5. **Deliver Business Insights Through Visualization**: Empower decision-makers by presenting actionable insights via Google Looker Studio dashboards — focusing on key performance metrics derived from the data.
 
 ## Tech Stack
 
