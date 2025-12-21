@@ -2,6 +2,7 @@
 
 !['Architeture Image'](img/ProjectInsfrastructure.png)
 
+## Overview
 This project was designed using Astro CLI, a framework based on Apache Airflow, integrated with DBT and Apache Spark to efficiently handle large-scale data extraction and transformation processes. The main dataset used in this project is the NYC public dataset, which is automatically downloaded from the web on a scheduled basis.
 
 The entire pipeline is containerized using Docker, ensuring consistency and portability across development and production environments. For cloud infrastructure, the project leverages Google Cloud Platform (GCP) — specifically Google Cloud Storage for data lake storage and BigQuery for data querying and analysis.
